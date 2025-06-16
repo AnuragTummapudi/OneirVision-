@@ -18,6 +18,7 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
+      'https://oneir-vision.vercel.app',
       'https://oneirvision.vercel.app',
       // Add other domains as needed
     ];
