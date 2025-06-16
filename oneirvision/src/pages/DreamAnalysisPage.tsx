@@ -709,13 +709,12 @@ const DreamAnalysisPage: React.FC = () => {
                         >
                           {/* Part 1 */}
                           <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border border-indigo-500/30 p-6">
-                            <div className="flex items-center mb-4">
+                            <div className="flex items-center justify-center mb-4">
                               <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
                                 1
                               </div>
                               <h4 className="text-xl font-semibold text-white">Beginning</h4>
                             </div>
-                            <p className="text-gray-200 mb-4">{sequentialVisualization.prompts.prompt1}</p>
                             <img 
                               src={sequentialVisualization.images.image1} 
                               alt="Dream Part 1" 
@@ -734,13 +733,12 @@ const DreamAnalysisPage: React.FC = () => {
 
                           {/* Part 2 */}
                           <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30 p-6">
-                            <div className="flex items-center mb-4">
+                            <div className="flex items-center justify-center mb-4">
                               <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
                                 2
                               </div>
                               <h4 className="text-xl font-semibold text-white">Climax</h4>
                             </div>
-                            <p className="text-gray-200 mb-4">{sequentialVisualization.prompts.prompt2}</p>
                             <img 
                               src={sequentialVisualization.images.image2} 
                               alt="Dream Part 2" 
