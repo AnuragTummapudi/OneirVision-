@@ -25,6 +25,21 @@ export interface DreamVisualization {
   createdAt: string;
 }
 
+// Sequential dream visualization model
+export interface SequentialDreamVisualization {
+  id: string;
+  dream: string;
+  prompts: {
+    prompt1: string;
+    prompt2: string;
+  };
+  images: {
+    image1: string;
+    image2: string;
+  };
+  createdAt: string;
+}
+
 // Dream entry model
 export interface DreamEntry {
   id: number;
@@ -61,6 +76,12 @@ interface DreamContextType {
   generateVisualizationAsync: (dreamDescription: string, style?: string) => Promise<DreamVisualization | null>;
   downloadVisualization: (imageUrl: string, filename: string) => void;
   
+  // Sequential Visualization
+  sequentialVisualization: SequentialDreamVisualization | null;
+  sequentialVisualizationLoading: boolean;
+  sequentialVisualizationError: string | null;
+  generateSequentialVisualizationAsync: (dreamDescription: string) => Promise<SequentialDreamVisualization | null>;
+  
   // Journal
   dreamJournal: DreamEntry[];
   journalLoading: boolean;
@@ -73,6 +94,7 @@ interface DreamContextType {
   // Reset functions
   resetInterpretation: () => void;
   resetVisualization: () => void;
+  resetSequentialVisualization: () => void;
 }
 
 const DreamContext = createContext<DreamContextType | undefined>(undefined);
@@ -101,6 +123,11 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
   const [visualizationLoading, setVisualizationLoading] = useState(false);
   const [visualizationError, setVisualizationError] = useState<string | null>(null);
 
+  // State for sequential visualization
+  const [sequentialVisualization, setSequentialVisualization] = useState<SequentialDreamVisualization | null>(null);
+  const [sequentialVisualizationLoading, setSequentialVisualizationLoading] = useState(false);
+  const [sequentialVisualizationError, setSequentialVisualizationError] = useState<string | null>(null);
+
   // State for journal
   const [dreamJournal, setDreamJournal] = useState<DreamEntry[]>([]);
   const [journalLoading, setJournalLoading] = useState(false);
@@ -122,7 +149,12 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
     setVisualizationError(null);
   };
 
-  // Dream interpretation function
+  const resetSequentialVisualization = () => {
+    setSequentialVisualization(null);
+    setSequentialVisualizationError(null);
+  };
+
+  // Dream interpretation function - uses your deployed backend
   const interpretDreamAsync = async (dreamData: { description: string; date?: string; mood?: string[] }) => {
     setInterpretationLoading(true);
     setInterpretationError(null);
@@ -130,7 +162,7 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
     try {
       console.log('Interpreting dream:', dreamData);
       
-      // Call our backend API for dream interpretation
+      // Call your deployed backend API for dream interpretation
       const response = await fetch(`${API_BASE_URL}/api/interpret`, {
         method: 'POST',
         headers: {
@@ -142,8 +174,20 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to interpret dream');
+        let errorMessage = 'Failed to interpret dream';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get the text response (likely HTML error page)
+          try {
+            const textResponse = await response.text();
+            errorMessage = `Server error (${response.status}): ${textResponse.substring(0, 100)}...`;
+          } catch (textError) {
+            errorMessage = `Server error (${response.status}): Unable to parse error response`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -175,47 +219,52 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
     }
   };
 
-  // Generate visualization using Hugging Face API
+  // Generate visualization using backend API with Pollinations fallback
   const generateVisualizationAsync = async (dreamDescription: string, style: string = 'dreamlike'): Promise<DreamVisualization | null> => {
     setVisualizationLoading(true);
     setVisualizationError(null);
     
     try {
-      // Create a descriptive prompt
-      const prompt = `A dreamlike visualization of: ${dreamDescription}${style ? `, in the style of ${style}` : ''}. Highly detailed, 4k, photorealistic`;
+      console.log('Generating visualization with description:', dreamDescription);
+      
+      // Call the backend API for image generation (now with Pollinations fallback)
+      const response = await fetch(`${API_BASE_URL}/api/visualize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: dreamDescription,
+          style: style
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to generate visualization';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          
+          // If it's a specific error about image generation, provide more context
+          if (errorMessage.includes('Hugging Face') || errorMessage.includes('Pollinations')) {
+            errorMessage = 'Image generation service temporarily unavailable. Please try again in a moment.';
+          }
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get the text response (likely HTML error page)
+          try {
+            const textResponse = await response.text();
+            errorMessage = `Server error (${response.status}): ${textResponse.substring(0, 100)}...`;
+          } catch (textError) {
+            errorMessage = `Server error (${response.status}): Unable to parse error response`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
       
       // Generate a unique ID for this visualization
       const visualizationId = `vis_${Date.now()}`;
-      
-      console.log('Generating visualization with prompt:', prompt);
-      
-      // Call Hugging Face API
-      const response = await fetch(
-        "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.REACT_APP_HUGGINGFACE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ 
-            inputs: prompt,
-            parameters: {
-              num_inference_steps: 30,
-              guidance_scale: 7.5,
-            }
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to generate image');
-      }
-
-      // Convert the response to a blob URL
-      const imageBlob = await response.blob();
-      const imageUrl = URL.createObjectURL(imageBlob);
       
       console.log('Successfully generated visualization');
       
@@ -224,7 +273,7 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
         id: visualizationId,
         title: `Dream Visualization - ${new Date().toLocaleDateString()}`,
         description: dreamDescription,
-        imageUrl,
+        imageUrl: data.imageUrl,
         style,
         createdAt: new Date().toISOString(),
       };
@@ -236,10 +285,81 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
       return newVisualization;
     } catch (error) {
       console.error('Error generating visualization:', error);
-      setVisualizationError('Failed to generate visualization. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate visualization. Please try again.';
+      setVisualizationError(errorMessage);
       return null;
     } finally {
       setVisualizationLoading(false);
+    }
+  };
+
+  // Generate sequential visualization using backend API with Pollinations fallback
+  const generateSequentialVisualizationAsync = async (dreamDescription: string): Promise<SequentialDreamVisualization | null> => {
+    setSequentialVisualizationLoading(true);
+    setSequentialVisualizationError(null);
+    
+    try {
+      console.log('Generating sequential visualization with description:', dreamDescription);
+      
+      // Call the backend API for sequential visualization (now with Pollinations fallback)
+      const response = await fetch(`${API_BASE_URL}/api/visualize-sequential`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dream: dreamDescription
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to generate sequential visualization';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          
+          // If it's a specific error about image generation, provide more context
+          if (errorMessage.includes('Hugging Face') || errorMessage.includes('Pollinations')) {
+            errorMessage = 'Image generation service temporarily unavailable. Please try again in a moment.';
+          }
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get the text response (likely HTML error page)
+          try {
+            const textResponse = await response.text();
+            errorMessage = `Server error (${response.status}): ${textResponse.substring(0, 100)}...`;
+          } catch (textError) {
+            errorMessage = `Server error (${response.status}): Unable to parse error response`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Generate a unique ID for this sequential visualization
+      const sequentialVisualizationId = `seq_vis_${Date.now()}`;
+      
+      console.log('Successfully generated sequential visualization');
+      
+      // Create the sequential visualization object
+      const newSequentialVisualization: SequentialDreamVisualization = {
+        id: sequentialVisualizationId,
+        dream: dreamDescription,
+        prompts: data.prompts,
+        images: data.images,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setSequentialVisualization(newSequentialVisualization);
+      
+      return newSequentialVisualization;
+    } catch (error) {
+      console.error('Error generating sequential visualization:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate sequential visualization. Please try again.';
+      setSequentialVisualizationError(errorMessage);
+      return null;
+    } finally {
+      setSequentialVisualizationLoading(false);
     }
   };
 
@@ -362,6 +482,12 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
     generateVisualizationAsync,
     downloadVisualization,
     
+    // Sequential Visualization
+    sequentialVisualization,
+    sequentialVisualizationLoading,
+    sequentialVisualizationError,
+    generateSequentialVisualizationAsync,
+    
     // Journal
     dreamJournal,
     journalLoading,
@@ -374,6 +500,7 @@ export const DreamProvider: React.FC<DreamProviderProps> = ({ children }) => {
     // Reset functions
     resetInterpretation,
     resetVisualization,
+    resetSequentialVisualization,
   };
 
   return (

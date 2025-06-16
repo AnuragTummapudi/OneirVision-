@@ -12,6 +12,8 @@ import DreamAnalysisPage from './pages/DreamAnalysisPage';
 import JournalPage from './pages/JournalPage';
 import AuthPage from './pages/AuthPage';
 import InsightsPage from './pages/InsightsPage';
+import ProfileSettingsPage from './pages/ProfileSettingsPage';
+import LucidityPage from './pages/LucidityPage';
 
 // Components
 import Navbar from './components/Navbar';
@@ -58,6 +60,8 @@ const AppContent = () => {
         <Route path="/analyze" element={<DreamAnalysisPage />} />
         <Route path="/journal" element={<JournalPage />} />
         <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/profile-settings" element={<ProfileSettingsPage />} />
+        <Route path="/lucidity" element={<LucidityPage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
     </main>

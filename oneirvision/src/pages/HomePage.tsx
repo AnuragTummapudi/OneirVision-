@@ -1,17 +1,56 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useAnimation } from 'framer-motion';
-import { ArrowRight, Sparkles, Brain, Eye, BookOpen } from 'lucide-react';
+import { motion, useAnimation, useScroll, useTransform } from 'framer-motion';
+import { 
+  ArrowRight, 
+  Brain, 
+  Zap, 
+  Palette,
+  BookOpen,
+  TrendingUp,
+  ChevronDown,
+  Play,
+  Shield,
+  Heart,
+  Target,
+  Users,
+  Clock,
+  Star,
+  Eye,
+  Moon,
+  Lightbulb,
+  BarChart3,
+  Compass,
+  Layers,
+  Sparkles,
+  CheckCircle,
+  ArrowDown
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import '../fonts.css';
-
-// Add the fonts to your fonts.css or index.css
-// @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+import StarField from '../components/StarField';
 
 const HomePage = () => {
   const { user } = useAuth();
   const controls = useAnimation();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll();
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  // Parallax transforms
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, -50]);
+
+  // Mouse tracking for interactive elements
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth) * 2 - 1,
+        y: (e.clientY / window.innerHeight) * 2 - 1
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   // Animate elements on mount
   useEffect(() => {
@@ -22,187 +61,465 @@ const HomePage = () => {
     });
   }, [controls]);
 
-  // Initialize canvas animation
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const journeySteps = [
+    {
+      step: 1,
+      title: 'Record Your Dreams',
+      description: 'Capture your dreams immediately upon waking with our intuitive journal interface and speech-to-text functionality.',
+      icon: <BookOpen className="h-8 w-8" />,
+      gradient: 'from-indigo-500 to-purple-600',
+      features: ['Voice recording', 'Mood tracking', 'Symbol tagging']
+    },
+    {
+      step: 2,
+      title: 'AI Analysis',
+      description: 'Our advanced AI interprets your dreams, identifying patterns, symbols, and psychological insights.',
+      icon: <Brain className="h-8 w-8" />,
+      gradient: 'from-purple-500 to-pink-600',
+      features: ['Symbol interpretation', 'Pattern recognition', 'Psychological insights']
+    },
+    {
+      step: 3,
+      title: 'Visual Creation',
+      description: 'Transform your dreams into stunning visual representations using cutting-edge AI image generation.',
+      icon: <Palette className="h-8 w-8" />,
+      gradient: 'from-pink-500 to-red-600',
+      features: ['AI artwork', 'Sequential storytelling', 'Custom styles']
+    },
+    {
+      step: 4,
+      title: 'Discover Insights',
+      description: 'Explore patterns, track lucid dreams, and gain deeper understanding of your subconscious mind.',
+      icon: <TrendingUp className="h-8 w-8" />,
+      gradient: 'from-green-500 to-teal-600',
+      features: ['Trend analysis', 'Lucid tracking', 'Personal growth']
+    }
+  ];
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const platformFeatures = [
+    {
+      icon: <BarChart3 className="h-16 w-16" />,
+      title: 'Advanced Analytics',
+      description: 'Track patterns, moods, and symbols across your dream history with detailed insights and visualizations.',
+      stats: '95% Pattern Recognition',
+      color: 'from-blue-500 to-indigo-600'
+    },
+    {
+      icon: <Layers className="h-16 w-16" />,
+      title: 'Multi-Modal Processing',
+      description: 'Combine text analysis, image generation, and audio processing for comprehensive dream exploration.',
+      stats: 'Text + Visual + Audio',
+      color: 'from-purple-500 to-pink-600'
+    },
+    {
+      icon: <Compass className="h-16 w-16" />,
+      title: 'Guided Journey',
+      description: 'Structured pathways and expert guidance to help you develop your dream interpretation skills.',
+      stats: 'Personalized Learning',
+      color: 'from-green-500 to-teal-600'
+    },
+    {
+      icon: <Shield className="h-16 w-16" />,
+      title: 'Privacy First',
+      description: 'Your dreams are personal. We use end-to-end encryption and never share your data.',
+      stats: '100% Private & Secure',
+      color: 'from-amber-500 to-orange-600'
+    }
+  ];
 
-    // Set canvas size
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    // Cleanup
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, []);
+  const whyChooseUs = [
+    {
+      icon: <Brain className="h-12 w-12" />,
+      title: 'AI-Powered Analysis',
+      description: 'Advanced neural networks decode hidden meanings in your dreams with scientific accuracy.',
+      color: 'text-indigo-400'
+    },
+    {
+      icon: <Palette className="h-12 w-12" />,
+      title: 'Visual Dream Creation',
+      description: 'Transform your dreams into stunning artwork using state-of-the-art AI image generation.',
+      color: 'text-purple-400'
+    },
+    {
+      icon: <BookOpen className="h-12 w-12" />,
+      title: 'Comprehensive Journaling',
+      description: 'Intuitive tools for capturing, organizing, and reflecting on your dream experiences.',
+      color: 'text-pink-400'
+    },
+    {
+      icon: <Sparkles className="h-12 w-12" />,
+      title: 'Lucid Dream Training',
+      description: 'Guided techniques and tools to help you achieve consciousness within your dreams.',
+      color: 'text-yellow-400'
+    }
+  ];
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0D041B]">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <canvas 
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-        />
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-indigo-900/10 to-[#0D041B]" />
-        
-        {/* Animated elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(5)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full mix-blend-screen"
-              style={{
-                width: Math.random() * 400 + 100 + 'px',
-                height: Math.random() * 400 + 100 + 'px',
-                background: `radial-gradient(circle, ${
-                  Math.random() > 0.5 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(99, 102, 241, 0.1)'
-                }, transparent 70%)`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                x: [0, (Math.random() - 0.5) * 200],
-                y: [0, (Math.random() - 0.5) * 200],
-                opacity: [0.3, 0.7, 0.3],
-              }}
-              transition={{
-                duration: Math.random() * 10 + 10,
-                repeat: Infinity,
-                repeatType: 'reverse',
-                ease: 'easeInOut',
-              }}
-            />
-          ))}
-        </div>
+      {/* StarField Background */}
+      <div className="fixed inset-0 z-0">
+        <StarField />
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-24">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={controls}
-          className="text-center max-w-5xl mx-auto w-full"
-        >
-          {/* Badge */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-flex items-center px-4 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 mb-8"
-          >
-            <Sparkles className="h-5 w-5 text-indigo-300 mr-2" />
-            <span className="text-sm font-medium text-indigo-200">
-              Discover Your Subconscious
-            </span>
-          </motion.div>
-          
-          {/* Main Heading */}
-          <motion.h1 
-            className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 font-heading"
+      {/* Gradient Overlay */}
+      <div className="fixed inset-0 z-10 bg-gradient-to-b from-[#0D041B]/80 via-[#0D041B]/60 to-[#0D041B]/90 pointer-events-none" />
+
+      {/* Interactive floating elements */}
+      <div className="fixed inset-0 z-20 overflow-hidden pointer-events-none">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full mix-blend-screen"
             style={{
-              background: 'linear-gradient(90deg, #FFFFFF 0%, #E0EAFF 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: '0 0 20px rgba(168, 85, 247, 0.3)',
+              width: Math.random() * 200 + 50 + 'px',
+              height: Math.random() * 200 + 50 + 'px',
+              background: `radial-gradient(circle, ${
+                Math.random() > 0.5 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(99, 102, 241, 0.1)'
+              }, transparent 70%)`,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
             }}
-          >
-            OneirVision
-          </motion.h1>
-          
-          {/* Subheading */}
-          <motion.h2 
-            className="text-xl md:text-2xl lg:text-3xl text-gray-200 mb-8 font-medium"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            AI-Powered Dream Interpretation & Visualization Platform
-          </motion.h2>
-          
-          {/* Description */}
-          <motion.p 
-            className="text-lg md:text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-          >
-            Unlock the hidden meaning of your dreams with powerful AI. Visualize them, reflect on them, and discover your inner universe.
-          </motion.p>
-          
-          {/* CTA Buttons */}
-          <motion.div 
-            className="flex flex-col sm:flex-row justify-center gap-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-          >
-            <Link
-              to={user ? '/dashboard' : '/auth/register'}
-              className="group relative px-8 py-4 bg-gradient-to-r from-[#A855F7] to-[#6366F1] text-white font-medium rounded-full hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 overflow-hidden"
+            animate={{
+              x: [0, (Math.random() - 0.5) * 100 + mousePosition.x * 10],
+              y: [0, (Math.random() - 0.5) * 100 + mousePosition.y * 10],
+              opacity: [0.3, 0.6, 0.3],
+              scale: [1, 1.05, 1],
+            }}
+            transition={{
+              duration: Math.random() * 8 + 8,
+              repeat: Infinity,
+              repeatType: 'reverse',
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="relative z-30">
+        {/* Hero Section */}
+        <motion.div 
+          ref={heroRef}
+          className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8"
+          style={{ y: heroY }}
+        >
+          <div className="max-w-4xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              animate={controls}
             >
-              <span className="relative z-10">
-                {user ? 'Go to Dashboard' : 'Start Exploring Dreams'}
-              </span>
-              <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </Link>
-            
-            {!user && (
-              <Link
-                to="/auth/login"
-                className="px-8 py-4 bg-transparent border-2 border-white/20 text-white font-medium rounded-full hover:bg-white/5 transition-all duration-300"
+              {/* Floating Badge */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                className="inline-flex items-center px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-8 hover:bg-white/15 transition-all duration-300"
+                whileHover={{ scale: 1.05 }}
               >
-                Sign In
-              </Link>
-            )}
-          </motion.div>
-          
-          {/* Features Grid */}
-          <motion.div 
-            className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-          >
-            {[
-              {
-                icon: <Brain className="h-8 w-8 text-indigo-400" />,
-                title: 'AI-Powered Analysis',
-                description: 'Get deep insights into your dreams with advanced AI interpretation.'
-              },
-              {
-                icon: <Eye className="h-8 w-8 text-purple-400" />,
-                title: 'Dream Visualization',
-                description: 'Transform your dreams into stunning visual representations.'
-              },
-              {
-                icon: <BookOpen className="h-8 w-8 text-pink-400" />,
-                title: 'Dream Journal',
-                description: 'Keep track of your dreams and discover patterns over time.'
-              }
-            ].map((feature, index) => (
-              <div 
-                key={index}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 hover:-translate-y-1"
+                <div className="h-2 w-2 bg-green-400 rounded-full mr-3 animate-pulse" />
+                <span className="text-sm font-medium text-white">
+                  Discover Your Subconscious Universe
+                </span>
+              </motion.div>
+              
+              {/* Main Heading */}
+              <motion.h1 
+                className="text-6xl md:text-7xl lg:text-8xl font-bold mb-8 font-heading"
+                style={{
+                  background: 'linear-gradient(90deg, #FFFFFF 0%, #E0EAFF 50%, #C7D2FE 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  textShadow: '0 0 30px rgba(168, 85, 247, 0.4)',
+                }}
+                animate={{
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                }}
+                transition={{
+                  duration: 8,
+                  repeat: Infinity,
+                  ease: 'linear'
+                }}
               >
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-300">{feature.description}</p>
-              </div>
-            ))}
-          </motion.div>
+                OneirVision
+              </motion.h1>
+              
+              {/* Subheading */}
+              <motion.h2 
+                className="text-2xl md:text-3xl text-gray-200 mb-6 font-medium"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.6 }}
+              >
+                AI-Powered Dream Interpretation & Visualization
+              </motion.h2>
+              
+              {/* Description */}
+              <motion.p 
+                className="text-lg md:text-xl text-gray-300 mb-10 leading-relaxed max-w-3xl mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+              >
+                Unlock the hidden meaning of your dreams with powerful AI. Visualize them in stunning detail, 
+                reflect on their deeper significance, and discover your inner universe like never before.
+              </motion.p>
+              
+              {/* CTA Buttons */}
+              <motion.div 
+                className="flex flex-col sm:flex-row gap-4 mb-8 justify-center"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.6 }}
+              >
+                <Link
+                  to={user ? '/dashboard' : '/auth'}
+                  className="group relative px-8 py-4 bg-gradient-to-r from-[#A855F7] to-[#6366F1] text-white font-semibold text-lg rounded-full hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-3 overflow-hidden"
+                >
+                  <span className="relative z-10">
+                    {user ? 'Enter Dream World' : 'Start Your Journey'}
+                  </span>
+                  <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-2" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </Link>
+                
+                <button className="group px-8 py-4 bg-transparent border-2 border-white/20 text-white font-semibold text-lg rounded-full hover:bg-white/5 hover:border-white/40 transition-all duration-300 flex items-center justify-center space-x-3">
+                  <Play className="h-5 w-5" />
+                  <span>Watch Demo</span>
+                </button>
+              </motion.div>
+
+              {/* Scroll Indicator */}
+              <motion.div 
+                className="flex items-center justify-center text-gray-400 text-sm"
+                animate={{ y: [0, 10, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <span className="mr-2">Explore More</span>
+                <ChevronDown className="h-4 w-4" />
+              </motion.div>
+            </motion.div>
+          </div>
         </motion.div>
+
+        {/* Journey Timeline Section */}
+        <div className="relative py-32 bg-gradient-to-b from-transparent via-[#0D041B]/95 to-[#0D041B]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div 
+              className="text-center mb-20"
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-6">
+                Your Dream Journey
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Follow a simple four-step process to unlock the mysteries of your subconscious mind
+              </p>
+            </motion.div>
+
+            {/* Timeline */}
+            <div className="relative">
+              {/* Vertical line */}
+              <div className="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500 opacity-30 hidden lg:block" />
+              
+              <div className="space-y-16">
+                {journeySteps.map((step, index) => (
+                  <motion.div
+                    key={index}
+                    className={`flex flex-col lg:flex-row items-center gap-8 ${
+                      index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
+                    }`}
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    viewport={{ once: true }}
+                  >
+                    {/* Content */}
+                    <div className="flex-1 lg:max-w-md">
+                      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300">
+                        <div className="flex items-center mb-6">
+                          <div className={`h-12 w-12 rounded-xl bg-gradient-to-r ${step.gradient} flex items-center justify-center text-white mr-4`}>
+                            {step.icon}
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-400 font-medium">Step {step.step}</div>
+                            <h3 className="text-2xl font-bold text-white">{step.title}</h3>
+                          </div>
+                        </div>
+                        
+                        <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                          {step.description}
+                        </p>
+
+                        <div className="space-y-2">
+                          {step.features.map((feature, featureIndex) => (
+                            <div key={featureIndex} className="flex items-center text-gray-400">
+                              <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                              <span className="text-sm">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step Number Circle */}
+                    <div className="relative z-10 flex-shrink-0">
+                      <div className={`w-16 h-16 rounded-full bg-gradient-to-r ${step.gradient} flex items-center justify-center text-white font-bold text-xl shadow-lg`}>
+                        {step.step}
+                      </div>
+                      {index < journeySteps.length - 1 && (
+                        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 lg:hidden">
+                          <ArrowDown className="h-6 w-6 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Spacer for alternating layout */}
+                    <div className="flex-1 lg:max-w-md hidden lg:block" />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Platform Features Section */}
+        <div className="relative py-32 bg-[#0D041B]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div 
+              className="text-center mb-20"
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-6">
+                Advanced Dream Technology
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Experience the most sophisticated dream analysis platform powered by cutting-edge AI and intuitive design
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {platformFeatures.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  className="group relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-500 overflow-hidden"
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  whileHover={{ scale: 1.02, y: -5 }}
+                >
+                  {/* Animated background gradient */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+                  
+                  <div className="relative z-10">
+                    <div className={`text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                      {feature.icon}
+                    </div>
+                    
+                    <h3 className="text-2xl font-bold text-white mb-4">
+                      {feature.title}
+                    </h3>
+                    
+                    <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                      {feature.description}
+                    </p>
+
+                    <div className={`inline-flex items-center px-4 py-2 bg-gradient-to-r ${feature.color} bg-opacity-20 rounded-full text-white font-medium text-sm`}>
+                      {feature.stats}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Why Choose OneirVision Section */}
+        <div className="relative py-32 bg-gradient-to-b from-[#0D041B] to-[#1A0B2E]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div 
+              className="text-center mb-20"
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-6">
+                The Complete Dream Platform
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Everything you need to explore, understand, and master your dream world in one comprehensive platform
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {whyChooseUs.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  className="text-center group"
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 hover:-translate-y-2">
+                    <div className={`${feature.color} mb-6 group-hover:scale-110 transition-transform duration-300 flex justify-center`}>
+                      {feature.icon}
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-4">{feature.title}</h3>
+                    <p className="text-gray-300 leading-relaxed">{feature.description}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Call to Action Section */}
+        <div className="relative py-32 bg-[#1A0B2E]">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <div className="bg-gradient-to-r from-purple-500/20 to-indigo-500/20 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-12">
+                <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-8">
+                  Ready to Explore Your Dreams?
+                </h2>
+                <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
+                  Join thousands of dreamers who have discovered the hidden meanings in their subconscious mind with OneirVision.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row justify-center gap-6">
+                  <Link
+                    to={user ? '/analyze' : '/auth'}
+                    className="group px-10 py-5 bg-gradient-to-r from-[#A855F7] to-[#6366F1] text-white font-semibold text-lg rounded-full hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-3"
+                  >
+                    <Zap className="h-6 w-6" />
+                    <span>Start Analyzing Dreams</span>
+                    <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-2" />
+                  </Link>
+                  
+                  <Link
+                    to="/journal"
+                    className="group px-10 py-5 bg-transparent border-2 border-white/20 text-white font-semibold text-lg rounded-full hover:bg-white/5 hover:border-white/40 transition-all duration-300 flex items-center justify-center space-x-3"
+                  >
+                    <BookOpen className="h-6 w-6" />
+                    <span>Start Dream Journal</span>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </div>
     </div>
   );

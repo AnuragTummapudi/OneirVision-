@@ -1,487 +1,676 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDreamContext, DreamEntry, NewDreamEntry } from '../contexts/DreamContext';
-import { format } from 'date-fns';
+import { useDreamContext } from '../contexts/DreamContext';
+import { 
+  Plus, 
+  Edit3, 
+  Trash2, 
+  Search, 
+  Heart, 
+  Moon, 
+  Calendar, 
+  Sparkles, 
+  Filter,
+  SortAsc,
+  SortDesc,
+  BookOpen,
+  Star,
+  Clock,
+  Tag
+} from 'lucide-react';
+import SpeechToText from '../components/SpeechToText';
+import type { DreamEntry } from '../contexts/DreamContext';
 
 const JournalPage: React.FC = () => {
   const { 
     dreamJournal, 
     journalLoading, 
+    journalError, 
     addDreamEntryAsync, 
     updateDreamEntryAsync, 
-    deleteDreamEntryAsync 
+    deleteDreamEntryAsync,
+    fetchDreamJournal 
   } = useDreamContext();
 
-  // Form state
-  const [showNewDreamForm, setShowNewDreamForm] = useState(false);
-  const [newDream, setNewDream] = useState<NewDreamEntry>({ 
-    title: '',
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    tags: [],
-    mood: '',
-    favorite: false,
-    interpretation: '',
-    visualization: '',
-    visualizationUrl: ''
-  });
-  const [tagInput, setTagInput] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDream, setEditingDream] = useState<DreamEntry | null>(null);
-
-  // Filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-
-  // Fetch dreams on mount
-  useEffect(() => {
-    // fetchDreamJournal is called automatically by the context
-  }, []);
-
-  // Filter dreams based on search and filters
-  const filteredDreams = dreamJournal.filter(dream => {
-    if (searchQuery && 
-        !dream.title.toLowerCase().includes(searchQuery.toLowerCase()) && 
-        !dream.description.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (selectedTag && !dream.tags?.includes(selectedTag)) return false;
-    if (selectedMonth && !dream.date.startsWith(selectedMonth)) return false;
-    return true;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMood, setSelectedMood] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    mood: 'peaceful',
+    tags: [] as string[],
+    date: new Date().toISOString().slice(0, 16),
+    isLucid: false
   });
 
-  // Get unique tags and months for filters
-  const allTags = Array.from(new Set(dreamJournal.flatMap(dream => dream.tags || [])));
-  const allMonths = Array.from(new Set(
-    dreamJournal.map(dream => dream.date?.substring(0, 7)).filter(Boolean)
-  )).sort().reverse();
+  const moodOptions = [
+    { value: 'peaceful', label: 'Peaceful', emoji: '🌙', color: 'from-blue-400 to-indigo-500' },
+    { value: 'adventurous', label: 'Adventurous', emoji: '⚡', color: 'from-yellow-400 to-orange-500' },
+    { value: 'mysterious', label: 'Mysterious', emoji: '🔮', color: 'from-purple-400 to-pink-500' },
+    { value: 'scary', label: 'Scary', emoji: '👻', color: 'from-red-400 to-red-600' },
+    { value: 'happy', label: 'Happy', emoji: '☀️', color: 'from-green-400 to-blue-500' },
+    { value: 'sad', label: 'Sad', emoji: '☁️', color: 'from-gray-400 to-blue-400' },
+    { value: 'confused', label: 'Confused', emoji: '🌀', color: 'from-indigo-400 to-purple-500' },
+    { value: 'excited', label: 'Excited', emoji: '🎆', color: 'from-pink-400 to-red-500' },
+    { value: 'lucid', label: 'Lucid', emoji: '✨', color: 'from-yellow-400 to-amber-500' }
+  ];
 
-  // Form handlers
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setNewDream(prev => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    fetchDreamJournal();
+  }, [fetchDreamJournal]);
 
-  const handleAddTag = () => {
-    if (tagInput.trim() && !newDream.tags?.includes(tagInput.trim())) {
-      setNewDream(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), tagInput.trim()]
-      }));
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setNewDream(prev => ({
-      ...prev,
-      tags: prev.tags?.filter(tag => tag !== tagToRemove) || []
-    }));
-  };
+  const filteredDreams = dreamJournal
+    .filter(dream => {
+      const matchesSearch = dream.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           dream.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesMood = !selectedMood || dream.mood === selectedMood;
+      return matchesSearch && matchesMood;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
-
-    if (!newDream.title.trim() || !newDream.description.trim()) {
-      setFormError('Please fill in all required fields');
-      return;
-    }
-
+    
     try {
+      const dreamData = {
+        ...formData,
+        tags: formData.tags,
+        mood: formData.isLucid ? 'lucid' : formData.mood
+      };
+
       if (editingDream) {
-        await updateDreamEntryAsync({ ...newDream, id: editingDream.id } as DreamEntry);
+        await updateDreamEntryAsync({
+          ...editingDream,
+          ...dreamData
+        });
       } else {
-        await addDreamEntryAsync(newDream);
+        await addDreamEntryAsync({
+          ...dreamData,
+          favorite: false,
+          interpretation: '',
+          visualization: '',
+          visualizationUrl: ''
+        });
       }
-      setShowNewDreamForm(false);
-      setNewDream({ 
-        title: '',
-        date: new Date().toISOString().split('T')[0],
-        description: '',
-        tags: [],
-        mood: '',
-        favorite: false,
-        interpretation: '',
-        visualization: '',
-        visualizationUrl: ''
-      });
+      
+      setIsModalOpen(false);
       setEditingDream(null);
+      setFormData({
+        title: '',
+        description: '',
+        mood: 'peaceful',
+        tags: [],
+        date: new Date().toISOString().slice(0, 16),
+        isLucid: false
+      });
     } catch (error) {
-      setFormError('Failed to save dream. Please try again.');
       console.error('Error saving dream:', error);
     }
   };
 
-  const handleEditDream = (dream: DreamEntry) => {
-    setNewDream({ ...dream });
+  const handleEdit = (dream: DreamEntry) => {
     setEditingDream(dream);
-    setShowNewDreamForm(true);
+    setFormData({
+      title: dream.title,
+      description: dream.description,
+      mood: dream.mood === 'lucid' ? 'peaceful' : dream.mood,
+      tags: dream.tags || [],
+      date: new Date(dream.date).toISOString().slice(0, 16),
+      isLucid: dream.mood === 'lucid' || 
+               dream.description.toLowerCase().includes('lucid') ||
+               dream.description.toLowerCase().includes('aware') ||
+               dream.description.toLowerCase().includes('control')
+    });
+    setIsModalOpen(true);
   };
 
-  const handleDeleteDream = async (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this dream?')) {
-      try {
-        await deleteDreamEntryAsync(id);
-      } catch (error) {
-        console.error('Error deleting dream:', error);
-      }
+      await deleteDreamEntryAsync(id);
     }
   };
 
-  // Helper function to get emoji for mood
-  const getMoodEmoji = (mood: string) => {
-    const moodEmojis: Record<string, string> = {
-      'Peaceful': '😌',
-      'Anxious': '😰',
-      'Exciting': '🤩',
-      'Confusing': '😕',
-      'Scary': '😱',
-      'Joyful': '😊',
-      'Sad': '😢',
-      'Curious': '🤔'
-    };
-    return moodEmojis[mood] || '✨';
+  const toggleFavorite = async (dream: DreamEntry) => {
+    await updateDreamEntryAsync({
+      ...dream,
+      favorite: !dream.favorite
+    });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-bg to-gray-900 pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.h1 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-vivid-blue to-teal-400 mb-4"
-          >
-            Dream Journal
-          </motion.h1>
-          <p className="text-gray-400 max-w-xl mx-auto">
-            Record, reflect, and visualize your dreams.
-          </p>
-        </div>
+  const handleSpeechToTextUpdate = (text: string) => {
+    setFormData(prev => ({
+      ...prev,
+      description: text
+    }));
+  };
 
-        {/* Search and Filter Bar */}
-        <div className="glassmorphism p-5 rounded-xl mb-8 border border-white/10 backdrop-blur-sm">
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Search dreams..."
-              className="flex-1 px-4 py-2 rounded-lg bg-dark-bg/50 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+  const isLucidDream = (dream: DreamEntry) => {
+    return dream.mood === 'lucid' || 
+           dream.description.toLowerCase().includes('lucid') ||
+           dream.description.toLowerCase().includes('aware') ||
+           dream.description.toLowerCase().includes('control');
+  };
+
+  const getMoodIcon = (mood: string) => {
+    const moodOption = moodOptions.find(m => m.value === mood);
+    return moodOption?.emoji || '🌙';
+  };
+
+  const getMoodColor = (mood: string) => {
+    const moodOption = moodOptions.find(m => m.value === mood);
+    return moodOption?.color || 'from-blue-400 to-indigo-500';
+  };
+
+  if (journalLoading) {
+    return (
+      <div className="min-h-screen bg-[#0D041B] relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-indigo-900/10 to-[#0D041B]" />
+          {[...Array(5)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full mix-blend-screen"
+              style={{
+                width: Math.random() * 300 + 100 + 'px',
+                height: Math.random() * 300 + 100 + 'px',
+                background: `radial-gradient(circle, ${
+                  Math.random() > 0.5 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(99, 102, 241, 0.1)'
+                }, transparent 70%)`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                x: [0, (Math.random() - 0.5) * 100],
+                y: [0, (Math.random() - 0.5) * 100],
+                opacity: [0.3, 0.7, 0.3],
+              }}
+              transition={{
+                duration: Math.random() * 10 + 10,
+                repeat: Infinity,
+                repeatType: 'reverse',
+                ease: 'easeInOut',
+              }}
             />
-            <select
-              className="px-4 py-2 rounded-lg bg-dark-bg/50 border border-gray-700 text-white"
-              value={selectedTag || ''}
-              onChange={(e) => setSelectedTag(e.target.value || null)}
-            >
-              <option value="">All Tags</option>
-              {allTags.map((tag) => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-            <select
-              className="px-4 py-2 rounded-lg bg-dark-bg/50 border border-gray-700 text-white"
-              value={selectedMonth || ''}
-              onChange={(e) => setSelectedMonth(e.target.value || null)}
-            >
-              <option value="">All Months</option>
-              {allMonths.map((month) => (
-                <option key={month} value={month}>
-                  {new Date(month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={() => {
-              setNewDream({ 
-                title: '',
-                date: new Date().toISOString().split('T')[0],
-                description: '',
-                tags: [],
-                mood: '',
-                favorite: false,
-                interpretation: '',
-                visualization: '',
-                visualizationUrl: ''
-              });
-              setEditingDream(null);
-              setShowNewDreamForm(true);
-            }}
-            className="w-full md:w-auto px-6 py-2.5 bg-gradient-to-r from-vivid-blue to-teal-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-vivid-blue/20 transition-all"
-          >
-            + Add New Dream
-          </button>
+          ))}
         </div>
 
-        {/* Dream List */}
-        {journalLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-vivid-blue"></div>
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-400 mx-auto mb-6"></div>
+            <h3 className="text-2xl font-semibold text-white mb-2">Loading Dreams</h3>
+            <p className="text-gray-300">Gathering your dream memories...</p>
           </div>
-        ) : filteredDreams.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">🌙</div>
-            <h3 className="text-xl font-semibold text-white mb-2">No dreams found</h3>
-            <p className="text-gray-400 mb-6">
-              {searchQuery || selectedTag || selectedMonth 
-                ? 'Try adjusting your search or filters.' 
-                : 'Start by adding your first dream entry.'}
-            </p>
-            <button
-              onClick={() => setShowNewDreamForm(true)}
-              className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-vivid-blue to-teal-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-vivid-blue/20 transition-all"
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0D041B] relative overflow-hidden">
+      {/* Animated Background - matching homepage */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-indigo-900/10 to-[#0D041B]" />
+        
+        {/* Animated elements - matching homepage */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(5)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full mix-blend-screen"
+              style={{
+                width: Math.random() * 400 + 100 + 'px',
+                height: Math.random() * 400 + 100 + 'px',
+                background: `radial-gradient(circle, ${
+                  Math.random() > 0.5 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(99, 102, 241, 0.1)'
+                }, transparent 70%)`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                x: [0, (Math.random() - 0.5) * 200],
+                y: [0, (Math.random() - 0.5) * 200],
+                opacity: [0.3, 0.7, 0.3],
+              }}
+              transition={{
+                duration: Math.random() * 10 + 10,
+                repeat: Infinity,
+                repeatType: 'reverse',
+                ease: 'easeInOut',
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-start px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+        <div className="max-w-7xl mx-auto w-full">
+          {/* Header - matching homepage style */}
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.6, -0.05, 0.01, 0.99] }}
+          >
+            {/* Floating Badge */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="inline-flex items-center px-6 py-3 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 mb-8 hover:bg-white/10 transition-all duration-300"
+              whileHover={{ scale: 1.05 }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Your First Dream
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {filteredDreams.map((dream) => (
-              <motion.div
-                key={dream.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-dark-bg/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-vivid-blue/50 transition-colors"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{getMoodEmoji(dream.mood)}</span>
-                      <h3 className="text-xl font-semibold text-white">{dream.title}</h3>
-                      <span className="text-sm text-gray-400">
-                        {format(new Date(dream.date), 'MMM d, yyyy')}
-                      </span>
-                    </div>
-                    <p className="text-gray-300 mb-4">{dream.description}</p>
-                    {dream.tags && dream.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {dream.tags.map((tag, idx) => (
-                          <span 
-                            key={idx} 
-                            className="px-3 py-1 text-xs font-medium bg-vivid-blue/10 text-vivid-blue rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTag(tag);
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditDream(dream);
-                      }}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
-                      title="Edit"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDream(dream.id as number);
-                      }}
-                      className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-full transition-colors"
-                      title="Delete"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              <BookOpen className="h-5 w-5 text-indigo-300 mr-2 animate-pulse" />
+              <span className="text-sm font-medium text-indigo-200">
+                📖 Your Personal Dream Archive
+              </span>
+            </motion.div>
 
-        {/* Add/Edit Dream Modal */}
-        <AnimatePresence>
-          {showNewDreamForm && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-dark-bg rounded-xl p-6 w-full max-w-2xl border border-gray-800 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-white">
-                    {editingDream ? 'Edit Dream' : 'Add New Dream'}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setShowNewDreamForm(false);
-                      setEditingDream(null);
-                    }}
-                    className="text-gray-400 hover:text-white"
+            {/* Main Heading */}
+            <motion.h1 
+              className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 font-heading"
+              style={{
+                background: 'linear-gradient(90deg, #FFFFFF 0%, #E0EAFF 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textShadow: '0 0 20px rgba(168, 85, 247, 0.3)',
+              }}
+            >
+              Dream Journal
+            </motion.h1>
+            
+            {/* Subheading */}
+            <motion.h2 
+              className="text-xl md:text-2xl lg:text-3xl text-gray-200 mb-8 font-medium"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            >
+              Where Dreams Become Memories
+            </motion.h2>
+            
+            {/* Description */}
+            <motion.p 
+              className="text-lg md:text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
+              Capture, explore, and reflect on your dream experiences. Build patterns, track lucid dreams, and unlock the wisdom of your subconscious mind.
+            </motion.p>
+          </motion.div>
+
+          {/* Controls Section */}
+          <motion.div 
+            className="mb-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-xl hover:bg-white/10 transition-all duration-300"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Search your dreams..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* Filters */}
+              <div className="flex gap-4 items-center">
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <select
+                    value={selectedMood}
+                    onChange={(e) => setSelectedMood(e.target.value)}
+                    className="pl-10 pr-8 py-4 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all appearance-none cursor-pointer"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                    <option value="">All Moods</option>
+                    {moodOptions.map(mood => (
+                      <option key={mood.value} value={mood.value} className="bg-gray-800">
+                        {mood.emoji} {mood.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {formError && (
-                    <div className="bg-red-900/30 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
-                      {formError}
+                <button
+                  onClick={() => setSortBy(sortBy === 'newest' ? 'oldest' : 'newest')}
+                  className="flex items-center gap-2 px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  title={`Sort by ${sortBy === 'newest' ? 'oldest' : 'newest'} first`}
+                >
+                  {sortBy === 'newest' ? <SortDesc className="h-5 w-5" /> : <SortAsc className="h-5 w-5" />}
+                  <span className="hidden sm:inline">
+                    {sortBy === 'newest' ? 'Newest' : 'Oldest'}
+                  </span>
+                </button>
+              </div>
+
+              {/* New Dream Button */}
+              <motion.button
+                onClick={() => setIsModalOpen(true)}
+                className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-300 flex items-center gap-3"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Plus className="h-5 w-5" />
+                <span>New Dream</span>
+              </motion.button>
+            </div>
+          </motion.div>
+
+          {/* Error State */}
+          {journalError && (
+            <motion.div 
+              className="mb-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <span className="text-red-400">⚠</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold">Error Loading Dreams</h3>
+                  <p className="text-sm text-red-300">{journalError}</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Dreams Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+            <AnimatePresence>
+              {filteredDreams.map((dream, index) => (
+                <motion.div
+                  key={dream.id}
+                  className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 relative overflow-hidden"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  whileHover={{ y: -5 }}
+                >
+                  {/* Lucid Dream Indicator */}
+                  {isLucidDream(dream) && (
+                    <div className="absolute top-4 right-4">
+                      <motion.div
+                        className="flex items-center gap-2 px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-medium border border-yellow-500/30"
+                        animate={{ scale: [1, 1.05, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Lucid
+                      </motion.div>
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Title *</label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={newDream.title}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg bg-dark-bg/70 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-                      required
-                    />
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-xl bg-gradient-to-r ${getMoodColor(dream.mood)} bg-opacity-20 backdrop-blur-sm`}>
+                        <span className="text-2xl">{getMoodIcon(dream.mood)}</span>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-white line-clamp-1 mb-2">
+                          {dream.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(dream.date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => toggleFavorite(dream)}
+                      className={`p-2 rounded-full transition-colors ${
+                        dream.favorite 
+                          ? 'text-red-400 hover:text-red-300 bg-red-500/20' 
+                          : 'text-gray-400 hover:text-red-400 hover:bg-red-500/10'
+                      }`}
+                    >
+                      <Heart className={`h-5 w-5 ${dream.favorite ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Date *</label>
-                      <input
-                        type="date"
-                        name="date"
-                        value={newDream.date}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 rounded-lg bg-dark-bg/70 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Mood</label>
-                      <select
-                        name="mood"
-                        value={newDream.mood}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 rounded-lg bg-dark-bg/70 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-                      >
-                        <option value="">Select a mood</option>
-                        <option value="Peaceful">😌 Peaceful</option>
-                        <option value="Anxious">😰 Anxious</option>
-                        <option value="Exciting">🤩 Exciting</option>
-                        <option value="Confusing">😕 Confusing</option>
-                        <option value="Scary">😱 Scary</option>
-                        <option value="Joyful">😊 Joyful</option>
-                        <option value="Sad">😢 Sad</option>
-                        <option value="Curious">🤔 Curious</option>
-                      </select>
-                    </div>
-                  </div>
+                  {/* Description */}
+                  <p className="text-gray-300 text-sm mb-6 line-clamp-3 leading-relaxed">
+                    {dream.description}
+                  </p>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Description *</label>
-                    <textarea
-                      name="description"
-                      value={newDream.description}
-                      onChange={handleInputChange}
-                      rows={4}
-                      className="w-full px-4 py-2 rounded-lg bg-dark-bg/70 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-                      required
-                    ></textarea>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Tags</label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddTag();
-                          }
-                        }}
-                        placeholder="Add a tag and press Enter"
-                        className="flex-1 px-4 py-2 rounded-lg bg-dark-bg/70 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddTag}
-                        className="px-4 py-2 bg-vivid-blue/20 text-vivid-blue rounded-lg hover:bg-vivid-blue/30 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {newDream.tags?.map((tag, index) => (
+                  {/* Tags */}
+                  {dream.tags && dream.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {dream.tags.slice(0, 3).map((tag, tagIndex) => (
                         <span
-                          key={index}
-                          className="inline-flex items-center px-3 py-1 bg-vivid-blue/10 text-vivid-blue rounded-full text-sm"
+                          key={tagIndex}
+                          className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-white/10 text-gray-300 rounded-full border border-white/10"
                         >
+                          <Tag className="h-3 w-3" />
                           {tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="ml-2 text-vivid-blue/70 hover:text-vivid-blue"
-                          >
-                            &times;
-                          </button>
                         </span>
                       ))}
+                      {dream.tags.length > 3 && (
+                        <span className="px-3 py-1 text-xs bg-white/10 text-gray-300 rounded-full border border-white/10">
+                          +{dream.tags.length - 3} more
+                        </span>
+                      )}
                     </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button
+                      onClick={() => handleEdit(dream)}
+                      className="flex-1 px-4 py-3 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-lg transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(dream.id)}
+                      className="flex-1 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Empty State */}
+          {filteredDreams.length === 0 && !journalLoading && (
+            <motion.div 
+              className="text-center py-20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="mb-8 p-8 bg-white/5 rounded-full w-32 h-32 mx-auto flex items-center justify-center backdrop-blur-sm border border-white/10">
+                <Moon className="h-16 w-16 text-indigo-300" />
+              </div>
+              <h3 className="text-3xl font-semibold text-white mb-4">
+                {searchTerm || selectedMood ? 'No dreams found' : 'Your dream journal awaits'}
+              </h3>
+              <p className="text-xl text-gray-400 mb-8 max-w-md mx-auto">
+                {searchTerm || selectedMood 
+                  ? 'Try adjusting your search or filters to find more dreams' 
+                  : 'Start capturing your dreams and unlock the hidden patterns of your subconscious mind'}
+              </p>
+              <motion.button
+                onClick={() => setIsModalOpen(true)}
+                className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-300 flex items-center gap-3 mx-auto"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Plus className="h-5 w-5" />
+                {searchTerm || selectedMood ? 'Add New Dream' : 'Write Your First Dream'}
+              </motion.button>
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsModalOpen(false)}
+          >
+            <motion.div
+              className="w-full max-w-3xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 backdrop-blur-sm">
+                    <BookOpen className="h-6 w-6 text-indigo-400" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-white">
+                    {editingDream ? 'Edit Dream' : 'Capture a New Dream'}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Dream Title
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                    placeholder="Give your dream a memorable title..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Dream Description
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={8}
+                      className="w-full px-4 py-4 pr-16 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all resize-none"
+                      placeholder="Describe your dream in vivid detail..."
+                      required
+                    />
+                    {/* Speech-to-Text Component */}
+                    <div className="absolute top-4 right-4">
+                      <SpeechToText 
+                        onTextUpdate={handleSpeechToTextUpdate}
+                        className="relative"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-3">
+                      Mood & Emotion
+                    </label>
+                    <select
+                      value={formData.mood}
+                      onChange={(e) => setFormData({ ...formData, mood: e.target.value })}
+                      className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                    >
+                      {moodOptions.filter(mood => mood.value !== 'lucid').map(mood => (
+                        <option key={mood.value} value={mood.value} className="bg-gray-800">
+                          {mood.emoji} {mood.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Visualization URL</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-3">
+                      Date & Time
+                    </label>
                     <input
-                      type="url"
-                      name="visualizationUrl"
-                      value={newDream.visualizationUrl || ''}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg bg-dark-bg/70 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-vivid-blue"
-                      placeholder="https://example.com/visualization"
+                      type="datetime-local"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                     />
                   </div>
+                </div>
 
-                  <div className="pt-4 flex justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowNewDreamForm(false);
-                        setEditingDream(null);
-                      }}
-                      className="px-6 py-2.5 text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-6 py-2.5 bg-gradient-to-r from-vivid-blue to-teal-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-vivid-blue/20 transition-all"
-                    >
-                      {editingDream ? 'Update Dream' : 'Save Dream'}
-                    </button>
+                {/* Lucid Dream Toggle */}
+                <div className="flex items-center justify-between p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                  <div className="flex items-center gap-4">
+                    <Sparkles className="h-8 w-8 text-yellow-400" />
+                    <div>
+                      <h3 className="text-white font-semibold text-lg">Lucid Dream</h3>
+                      <p className="text-gray-400">Were you aware you were dreaming?</p>
+                    </div>
                   </div>
-                </form>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-      </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isLucid}
+                      onChange={(e) => setFormData({ ...formData, isLucid: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-yellow-500"></div>
+                  </label>
+                </div>
+
+                <div className="flex gap-4 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 px-6 py-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-all font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
+                  >
+                    {editingDream ? 'Update Dream' : 'Save Dream'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
