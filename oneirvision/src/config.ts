@@ -4,8 +4,8 @@
 export const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 export const HUGGINGFACE_API_KEY = process.env.REACT_APP_HUGGINGFACE_API_KEY;
 
-// Backend API configuration - using local backend for development
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
+// Backend API configuration - using production backend with local fallback
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://oneirvision.onrender.com';
 
 // API endpoints
 export const API_ENDPOINTS = {
