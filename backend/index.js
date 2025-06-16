@@ -9,13 +9,36 @@ const PORT = process.env.PORT || 5001;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
 
-// Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com', 'https://oneirvision.vercel.app'] 
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true
-}));
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://oneirvision.vercel.app',
+      // Add other domains as needed
+    ];
+    
+    if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 // Health check endpoint
@@ -161,8 +184,30 @@ const generateImageWithFallback = async (prompt, style = 'dreamlike') => {
 
 // Dream interpretation endpoint
 app.post('/api/interpret', async (req, res) => {
+  console.log('Received interpretation request:', { 
+    body: req.body,
+    headers: req.headers,
+    method: req.method
+  });
+
+  if (!GEMINI_API_KEY) {
+    console.error('Gemini API key is not configured');
+    return res.status(500).json({ 
+      error: 'Server configuration error',
+      message: 'Gemini API key is not configured' 
+    });
+  }
+
   try {
     const { dream } = req.body;
+    
+    if (!dream) {
+      console.error('No dream content provided');
+      return res.status(400).json({ 
+        error: 'Bad Request',
+        message: 'Dream content is required' 
+      });
+    }
 
     if (!dream) {
       return res.status(400).json({ error: 'Dream description is required' });
@@ -286,9 +331,14 @@ For each part, write a visually descriptive prompt that includes:
 Return the two prompts clearly labeled as "Prompt 1" and "Prompt 2".
 Dream: "${dream}"`;
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    console.log('Sending request to Gemini API:', { url: geminiUrl });
+    
+    let geminiResponse;
+    let geminiData;
+    
+    try {
+      geminiResponse = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -304,83 +354,97 @@ Dream: "${dream}"`;
             },
           ],
         }),
+        timeout: 30000 // 30 second timeout
+      });
+
+      if (!geminiResponse.ok) {
+        const errorData = await geminiResponse.json().catch(() => ({}));
+        console.error('Gemini API Error:', {
+          status: geminiResponse.status,
+          statusText: geminiResponse.statusText,
+          errorData
+        });
+        return res.status(500).json({ 
+          success: false,
+          error: 'AI Service Error',
+          message: 'Failed to generate image prompts',
+          details: errorData 
+        });
       }
-    );
 
-    if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.json();
-      console.error('Gemini API Error:', errorData);
-      return res.status(geminiResponse.status).json({ 
-        error: 'Failed to generate image prompts',
-        details: errorData 
-      });
-    }
-
-    const geminiData = await geminiResponse.json();
-    const promptsText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    console.log('Generated prompts from Gemini:', promptsText);
-
-    // Parse the two prompts
-    const prompt1Match = promptsText.match(/Prompt 1[:\s]*([\s\S]*?)(?=Prompt 2|$)/i);
-    const prompt2Match = promptsText.match(/Prompt 2[:\s]*([\s\S]*?)$/i);
-
-    if (!prompt1Match || !prompt2Match) {
-      return res.status(500).json({ 
-        error: 'Failed to parse image prompts from Gemini response',
-        details: promptsText 
-      });
-    }
-
-    const prompt1 = prompt1Match[1].trim();
-    const prompt2 = prompt2Match[1].trim();
-
-    console.log('Parsed Prompt 1:', prompt1);
-    console.log('Parsed Prompt 2:', prompt2);
-
-    // Step 2: Generate images using enhanced generation with fallback
-    const generateImage = async (prompt, partNumber) => {
-      console.log(`Generating image ${partNumber} with prompt:`, prompt);
+      geminiData = await geminiResponse.json();
+      console.log('Gemini API Response:', JSON.stringify(geminiData, null, 2));
       
-      try {
-        const imageUrl = await generateImageWithFallback(prompt, 'dreamlike, surreal, fantasy art');
-        console.log(`✅ Successfully generated image ${partNumber}`);
-        return imageUrl;
-      } catch (error) {
-        console.error(`❌ Failed to generate image ${partNumber}:`, error);
-        throw new Error(`Failed to generate image ${partNumber}: ${error.message}`);
+      if (!geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Invalid response format from Gemini API');
       }
-    };
-
-    // Generate both images concurrently
-    const [image1, image2] = await Promise.all([
-      generateImage(prompt1, 1),
-      generateImage(prompt2, 2)
-    ]);
-
-    console.log('Successfully generated both sequential images');
-
-    // Prepare response
-    const responseData = {
-      success: true,
-      dream: dream,
-      prompts: {
-        prompt1: prompt1,
-        prompt2: prompt2
-      },
-      images: {
-        image1: image1,
-        image2: image2
-      },
-      generatedAt: new Date().toISOString()
-    };
-    
-    res.json(responseData);
+      
+      const promptsText = geminiData.candidates[0].content.parts[0].text;
+      console.log('Generated prompts from Gemini:', promptsText);
+      
+      // Process the prompts and continue with the response
+      const prompt1Match = promptsText.match(/Prompt 1:(.*?)(?=Prompt 2:|$)/is);
+      const prompt2Match = promptsText.match(/Prompt 2:(.*?)$/is);
+      
+      if (!prompt1Match || !prompt2Match) {
+        throw new Error('Could not extract prompts from Gemini response');
+      }
+      
+      const prompt1 = prompt1Match[1].trim();
+      const prompt2 = prompt2Match[1].trim();
+      
+      // Generate images using the prompts
+      const [image1, image2] = await Promise.all([
+        generateImageWithFallback(prompt1, 'dreamlike'),
+        generateImageWithFallback(prompt2, 'dreamlike')
+      ]);
+      
+      // Prepare the response
+      const interpretation = {
+        id: Date.now().toString(),
+        summary: `Interpretation for dream about ${dream.substring(0, 30)}...`,
+        symbols: findSymbolsInText(dream).map(symbol => ({
+          symbol,
+          meaning: `Meaning of ${symbol} in dreams`
+        })),
+        psychological: 'Psychological analysis would appear here...',
+        psychologicalAnalysis: 'Detailed psychological analysis...',
+        emotional: 'Emotional analysis would appear here...',
+        emotionalInsights: 'Detailed emotional insights...',
+        advice: 'Actionable advice based on the dream...',
+        actionableAdvice: 'Detailed actionable advice...',
+        createdAt: new Date().toISOString()
+      };
+      
+      res.status(200).json({
+        success: true,
+        prompts: {
+          prompt1,
+          prompt2
+        },
+        images: {
+          image1,
+          image2
+        },
+        style: 'dreamlike'
+      });
+      
+    } catch (error) {
+      console.error('Error in sequential dream visualization:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process sequential dream visualization',
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
   } catch (error) {
-    console.error('Error in sequential dream visualization:', error);
+    console.error('Unexpected error in sequential dream visualization:', error);
     res.status(500).json({
+      success: false,
       error: 'Internal server error',
-      details: error.message,
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -415,14 +479,15 @@ app.post('/api/visualize', async (req, res) => {
       console.error('Image generation failed:', error);
       res.status(500).json({
         error: 'Failed to generate visualization',
-        details: error.message
+        message: error.message
       });
     }
   } catch (error) {
     console.error('Error in dream visualization:', error);
     res.status(500).json({
       error: 'Internal server error',
-      details: error.message,
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

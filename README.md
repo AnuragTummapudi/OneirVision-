@@ -24,12 +24,42 @@
 
 ## 🛠️ Tech Stack
 
-| Frontend | Backend / AI | Design |
-|---------|----------------|--------|
-| React.js | Gemini/OpenAI | Figma |
-| Tailwind CSS | Stable Diffusion / Replicate | Spline 3D |
-| Framer Motion | Firebase / Clerk (Auth) | Gradient UI |
-| React Router | Node.js (planned) | Animations & Micro-interactions |
+### Frontend
+- **Core**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, Styled Components
+- **Animation & 3D**: Framer Motion, Three.js, @react-three/fiber, @react-three/drei
+- **UI Components**: Headless UI, Hero Icons, Lucide Icons
+- **State Management**: React Context API
+- **Routing**: React Router v6
+- **Charts**: Chart.js
+- **Audio**: Howler.js
+- **Particles**: tsparticles
+- **Form Handling**: React Hook Form
+- **Date Handling**: date-fns
+
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Authentication**: JWT
+- **API**: RESTful API
+- **AI Integration**: 
+  - Google's Gemini AI
+  - Hugging Face (for potential ML models)
+- **Environment Management**: dotenv
+- **CORS**: Built-in CORS middleware
+
+### Development Tools
+- **Package Manager**: npm
+- **Bundler**: Vite
+- **Linting/Formatting**: ESLint, Prettier
+- **Type Checking**: TypeScript
+- **Version Control**: Git
+- **Deployment**: Vercel (Frontend), Render/Vercel (Backend)
+
+### APIs & Services
+- **AI/ML**: Google Gemini, Hugging Face
+- **Authentication**: Google OAuth
+- **Hosting**: Vercel, Render
 
 ---
 
