@@ -59,7 +59,7 @@ const DreamAnalysisPage: React.FC = () => {
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) {
-      audio.volume = 0.3; // Set volume to 30%
+      audio.volume = 0.7; // Set volume to 30%
       audio.loop = true;
       
       // Try to play the audio
@@ -708,22 +708,26 @@ const DreamAnalysisPage: React.FC = () => {
                           transition={{ duration: 0.5 }}
                         >
                           {/* Part 1 */}
-                          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border border-indigo-500/30 p-6">
-                            <div className="flex items-center justify-center mb-4">
-                              <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
-                                1
+                          <div className="w-full overflow-hidden rounded-xl border border-white/20">
+                            <div className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 p-4">
+                              <div className="flex items-center justify-center">
+                                <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                                  1
+                                </div>
+                                <h4 className="text-xl font-semibold text-white">Beginning</h4>
                               </div>
-                              <h4 className="text-xl font-semibold text-white">Beginning</h4>
                             </div>
-                            <img 
-                              src={sequentialVisualization.images.image1} 
-                              alt="Dream Part 1" 
-                              className="w-full h-64 object-cover rounded-lg border border-white/20"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://source.unsplash.com/random/800x400/?dream,beginning';
-                              }}
-                            />
+                            <div className="w-full aspect-video bg-gray-900/50">
+                              <img 
+                                src={sequentialVisualization.images.image1} 
+                                alt="Dream Part 1" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://source.unsplash.com/random/1600x900/?dream,beginning';
+                                }}
+                              />
+                            </div>
                           </div>
 
                           {/* Arrow */}
@@ -732,22 +736,26 @@ const DreamAnalysisPage: React.FC = () => {
                           </div>
 
                           {/* Part 2 */}
-                          <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30 p-6">
-                            <div className="flex items-center justify-center mb-4">
-                              <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
-                                2
+                          <div className="w-full overflow-hidden rounded-xl border border-white/20">
+                            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4">
+                              <div className="flex items-center justify-center">
+                                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                                  2
+                                </div>
+                                <h4 className="text-xl font-semibold text-white">Climax</h4>
                               </div>
-                              <h4 className="text-xl font-semibold text-white">Climax</h4>
                             </div>
-                            <img 
-                              src={sequentialVisualization.images.image2} 
-                              alt="Dream Part 2" 
-                              className="w-full h-64 object-cover rounded-lg border border-white/20"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://source.unsplash.com/random/800x400/?dream,climax';
-                              }}
-                            />
+                            <div className="w-full aspect-video bg-gray-900/50">
+                              <img 
+                                src={sequentialVisualization.images.image2} 
+                                alt="Dream Part 2" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://source.unsplash.com/random/1600x900/?dream,climax';
+                                }}
+                              />
+                            </div>
                           </div>
 
                           {/* Download Buttons */}
